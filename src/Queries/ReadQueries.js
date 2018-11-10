@@ -85,8 +85,61 @@ class ReadQueries extends Queries {
         // Compute pagination
         if (page !== -1) {
             params._page = (typeof (page) === 'undefined') ? 1 : parseInt(page, 10);
+        }
+
+        if (params._page || params._cursor) {
             params._perPage = perPage;
         }
+        
+        return this.getRawValuesForParams(entity, viewName, viewType, params, filterValues, filterFields, sortField, sortDir, url);
+    }
+
+
+    /**
+     * Return the list of all object of entityName type
+     * Get all the object from the API
+     *
+     * @param {Entity}   entity
+     * @param {String}   viewName
+     * @param {String}   viewType
+     * @param {String}   cursor
+     * @param {Number}   perPage
+     * @param {Object}   filterValues
+     * @param {Object}   filterFields
+     * @param {String}   sortField
+     * @param {String}   sortDir
+     * @param {String}   url
+     *
+     * @returns {promise} the entity config & the list of objects
+     */
+    getRawValuesWithCursor(entity, viewName, viewType, cursor, perPage, filterValues, filterFields, sortField, sortDir, url) {
+        let params = {};
+
+        // Compute pagination
+        params._cursor = cursor;
+        // always pass the page size
+        params._perPage = perPage;
+        
+        return this.getRawValuesForParams(entity, viewName, viewType, params, filterValues, filterFields, sortField, sortDir, url);
+    }
+
+    /**
+     * Return the list of all object of entityName type
+     * Get all the object from the API
+     *
+     * @param {Entity}   entity
+     * @param {String}   viewName
+     * @param {String}   viewType
+     * @param {Object}   params
+     * @param {Object}   filterValues
+     * @param {Object}   filterFields
+     * @param {String}   sortField
+     * @param {String}   sortDir
+     * @param {String}   url
+     *
+     * @returns {promise} the entity config & the list of objects
+     */
+    getRawValuesForParams(entity, viewName, viewType, params, filterValues, filterFields, sortField, sortDir, url) {
 
         // Compute sorting
         if (sortField && sortField.split('.')[0] === viewName) {
@@ -115,6 +168,51 @@ class ReadQueries extends Queries {
         // Get grid data
         return this._restWrapper
             .getList(params, entity.name(), this._application.getRouteFor(entity, url, viewType), entity.retrieveMethod());
+    }
+
+
+    /**
+     * Return the list of all object of entityName type
+     * Get all the object from the API
+     *
+     * @param {ListView} view                the view associated to the entity
+     * @param {String}   cursor              the cursor of the next page
+     * @param {Object}   filterValues        searchQuery to filter elements
+     * @param {String}   sortField           the field to be sorted ex: entity.fieldName
+     * @param {String}   sortDir             the direction of the sort
+     *
+     * @returns {promise} the entity config & the list of objects
+     */
+    getAllWithCursor(view, cursor, filterValues, sortField, sortDir) {
+        filterValues = filterValues || {};
+        let url = view.getUrl();
+
+        if (sortField && sortField.split('.')[0] === view.name()) {
+            sortField = sortField;
+            sortDir = sortDir;
+        } else {
+            sortField = view.getSortFieldName();
+            sortDir = view.sortDir();
+        }
+
+        let allFilterValues = {};
+        const permanentFilters = view.permanentFilters();
+        Object.keys(filterValues).forEach(key => {
+            allFilterValues[key] = filterValues[key];
+        });
+        Object.keys(permanentFilters).forEach(key => {
+            allFilterValues[key] = permanentFilters[key];
+        });
+
+        return this.getRawValuesWithCursor(view.entity, view.name(), view.type, cursor, view.perPage(), allFilterValues, view.filters(), sortField, sortDir, url)
+            .then((values) => {
+                return {
+                    data: values.data,
+                    cursor: values.cursor || cursor,
+                    nextCursor: values.nextCursor || values.headers('X-Cursor'),
+                    totalItems: values.totalCount || values.headers('X-Total-Count') || values.data.length
+                };
+            });
     }
 
     getReferenceData(references, rawValues) {

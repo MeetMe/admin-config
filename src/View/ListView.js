@@ -8,6 +8,7 @@ class ListView extends View {
         this._type = 'ListView';
         this._perPage = 30;
         this._infinitePagination = false;
+        this._cursorPagination = false;
         this._listActions = [];
         this._batchActions = ['delete'];
         this._filters = [];
@@ -61,6 +62,15 @@ class ListView extends View {
         }
 
         return this._infinitePagination;
+    }
+
+    cursorPagination() {
+        if (arguments.length) {
+            this._cursorPagination = arguments[0];
+            return this;
+        }
+
+        return this._cursorPagination;
     }
 
     actions(actions) {
